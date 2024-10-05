@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 import pandas as pd
+import ast 
 
 class EnglishSpanishDataset(Dataset):
     def __init__(self, statfile, datasetpath):
@@ -19,14 +20,12 @@ class EnglishSpanishDataset(Dataset):
         spanishlist = row["spanish"]
         
         englishfiller = torch.zeros([self.en_max - len(englishlist)])
-        print()
-        temp = torch.Tensor(englishlist)
-        input = torch.cat([temp,englishfiller])
+        input = torch.cat([torch.Tensor(ast.literal_eval(englishlist)),englishfiller])
         
         spanishfiller = torch.zeros([self.sp_max - len(spanishlist)])
-        output = torch.cat[torch.Tensor(spanishlist),spanishfiller]
+        output = torch.cat([torch.Tensor(ast.literal_eval(spanishlist)),spanishfiller])
         
-        return input, output
+        return input.to(torch.int64), output.to(torch.int64)
         
         
         
