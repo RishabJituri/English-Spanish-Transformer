@@ -3,15 +3,13 @@ import torch
 import torch.nn.functional as F
 import math
 
-
-class LayerNorm(nn.Module):
-    def forward():
+class PositionWiseFFN(nn.Module):
+    def __init__(self,):
+        super().__init__()
         
-        
-
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, input_size:int, input_dim:int, heads:int, param_dim:int, final_dim):
+    def __init__(self, input_size:int, input_dim:int, heads:int, param_dim:int):
         super().__init__()
         self.input_size = input_size
         self.input_dim = input_dim
@@ -19,7 +17,7 @@ class MultiHeadAttention(nn.Module):
         self.Qw = torch.rand([heads,input_size.size(-1),param_dim])
         self.Kw = torch.rand([heads,input_size.size(-1),param_dim])
         self.Vw = torch.rand([heads,input_size.size(-1),input_dim//heads])
-        self.final_linear = nn.Linear(param_dim*heads,final_dim)
+        self.final_linear = nn.Linear(param_dim*heads,param_dim*heads)
         
     def forward(self,x):
         Q = torch.matmul(x,self.Qw)
@@ -35,9 +33,11 @@ class Encoder(nn.Module):
     def __init__(self,input_size,embedding_dim,attention_heads,attention_param_dim,attention_linear_dim):
         super().__init__()
         self.attention = MultiHeadAttention(input_size,embedding_dim,attention_heads,attention_param_dim,attention_linear_dim)
-    
+        self.layerNorm = nn.LayerNorm()
     def forward(self,x):
         attention_output = self.attention(x)
+        add_plus_layerNorm = self.layerNorm(x+attention_output)
+        feed_forward_pass = 
         
         
            
