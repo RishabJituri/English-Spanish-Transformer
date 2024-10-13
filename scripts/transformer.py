@@ -4,12 +4,19 @@ import torch.nn.functional as F
 import math
 
 class PositionWiseFFN(nn.Module):
-    def __init__(self,):
+    def __init__(self,input_size,bias=True):
         super().__init__()
+        self.first_layer = nn.Linear(input_size[-1],input_size[-1]*2,bias)
+        self.second_layer = nn.Linear(input_size[-1]*2,input_size[-1],bias)
+    def forward(self,x):
+        x = self.first_layer(x)
+        x = F.relu(x)
+        x = self.second_layer(x)
+        return x
         
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, input_size:int, input_dim:int, heads:int, param_dim:int):
+    def __init__(self, input_size:int, input_dim:int, heads:int, param_dim:int,bias=True,mask=False):
         super().__init__()
         self.input_size = input_size
         self.input_dim = input_dim
@@ -17,7 +24,7 @@ class MultiHeadAttention(nn.Module):
         self.Qw = torch.rand([heads,input_size.size(-1),param_dim])
         self.Kw = torch.rand([heads,input_size.size(-1),param_dim])
         self.Vw = torch.rand([heads,input_size.size(-1),input_dim//heads])
-        self.final_linear = nn.Linear(param_dim*heads,param_dim*heads)
+        self.final_linear = nn.Linear(param_dim*heads,param_dim*heads,bias)
         
     def forward(self,x):
         Q = torch.matmul(x,self.Qw)
@@ -30,14 +37,20 @@ class MultiHeadAttention(nn.Module):
         return final
             
 class Encoder(nn.Module):
-    def __init__(self,input_size,embedding_dim,attention_heads,attention_param_dim,attention_linear_dim):
+    def __init__(self,input_size,attention_heads,attention_param_dim,attention_linear_dim):
         super().__init__()
-        self.attention = MultiHeadAttention(input_size,embedding_dim,attention_heads,attention_param_dim,attention_linear_dim)
-        self.layerNorm = nn.LayerNorm()
+        self.attention = MultiHeadAttention(input_size[0],input_size[-1],attention_heads,attention_param_dim,attention_linear_dim)
+        self.pwff = PositionWiseFFN(input_size)
     def forward(self,x):
         attention_output = self.attention(x)
-        add_plus_layerNorm = self.layerNorm(x+attention_output)
-        feed_forward_pass = 
+        add = x+attention_output
+        LayerNorm = F.layer_norm(add,add.size())
+        feed_forward_pass = self.pwff(LayerNorm)
+        add = LayerNorm + feed_forward_pass
+        return(F.layer_norm(add,add.size()))
+
+class Decoder(nn.Module):
+    def __init__(self,input_size,target_size)
         
         
            
