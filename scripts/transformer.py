@@ -16,33 +16,31 @@ class PositionWiseFFN(nn.Module):
         
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, input_size:int, input_dim:int, heads:int, param_dim:int,bias=True,mask=False):
+    def __init__(self, K_size,Q_size,V_size, heads:int, param_dim:int,bias=True,mask=False):
         super().__init__()
-        self.input_size = input_size
-        self.input_dim = input_dim
         self.heads = heads
-        self.Qw = torch.rand([heads,input_size.size(-1),param_dim])
-        self.Kw = torch.rand([heads,input_size.size(-1),param_dim])
-        self.Vw = torch.rand([heads,input_size.size(-1),input_dim//heads])
+        self.Qw = torch.rand([heads,Q_size[-1].size(-1),param_dim])
+        self.Kw = torch.rand([heads,K_size[-1].size(-1),param_dim])
+        self.Vw = torch.rand([heads,V_size[-1].size(-1),V_size[-1]//heads])
         self.final_linear = nn.Linear(param_dim*heads,param_dim*heads,bias)
         
-    def forward(self,x):
-        Q = torch.matmul(x,self.Qw)
-        K = torch.matmul(x,self.Kw)
-        V = torch.matmul(x,self.Vw)
+    def forward(self,tensor_Q,tensor_K,tensor_V):
+        Q = torch.matmul(tensor_Q,self.Qw)
+        K = torch.matmul(tensor_K,self.Kw)
+        V = torch.matmul(tensor_V,self.Vw)
         score = F.sigmoid(Q@K.transpose(1,2)/math.sqrt(K.size(-1)))
         scale_dot_attention = torch.matmul(score,V)
-        concatenated = scale_dot_attention.reshape(45,-1)
+        concatenated = scale_dot_attention.reshape(scale_dot_attention[1],-1)
         final = self.final_linear(concatenated)
         return final
             
 class Encoder(nn.Module):
     def __init__(self,input_size,attention_heads,attention_param_dim,attention_linear_dim):
         super().__init__()
-        self.attention = MultiHeadAttention(input_size[0],input_size[-1],attention_heads,attention_param_dim,attention_linear_dim)
+        self.attention = MultiHeadAttention(input_size,input_size,input_size,attention_heads,attention_param_dim,attention_linear_dim)
         self.pwff = PositionWiseFFN(input_size)
     def forward(self,x):
-        attention_output = self.attention(x)
+        attention_output = self.attention(x,x,x)
         add = x+attention_output
         LayerNorm = F.layer_norm(add,add.size())
         feed_forward_pass = self.pwff(LayerNorm)
@@ -50,15 +48,30 @@ class Encoder(nn.Module):
         return(F.layer_norm(add,add.size()))
 
 class Decoder(nn.Module):
-    def __init__(self,input_size,target_size)
+    def __init__(self,input_size,target_size, att1_heads, att2_heads,att1_param, att2_param):
+        self.masked_attention = MultiHeadAttention(target_size,target_size,target_size,att1_heads,att1_param,True,True)
+        self.second_attention = MultiHeadAttention(input_size,target_size,input_size,att2_heads,att2_param)
+        self.pwff = PositionWiseFFN(target_size)
+    
+    def forward(self,input,target):
+        masked_attention = self.masked_attention(target,target,target)
+        add = masked_attention + target
+        LayerNorm = F.layer_norm(add,add.size())
+        reg_attention = self.second_attention(LayerNorm,input,input)
+        add = reg_attention + LayerNorm
+        LayerNorm = F.layer_norm(add,add.size())
+        feed_forward_pass = self.pwff(LayerNorm)
+        add = feed_forward_pass + LayerNorm
+        LayerNorm = F.layer_norm(add,add.size())
+        return LayerNorm
         
         
-           
-   
+        
      
 class Transformer(nn.Module):
-    def __init__(self,input_size,embedding_dim):
-        self.input_embedding = nn.Embedding(num_embeddings=input_size,embedding_dim=1)
+    def __init__(self,input_size,target_size, embedding_dim):
+        self.input_embedding = nn.Embedding(num_embeddings=input_size,embedding_dim=embedding_dim)
+        self.target_embedding = nn.Embedding(num_embeddings=target_size,embedding_dim=embedding_dim)
         self.encoder = Encoder()
         self.decoder = Decoder()
         
